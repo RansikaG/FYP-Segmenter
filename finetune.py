@@ -57,12 +57,12 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
 def create_segementer(model_path):
     loaded_model, variant = load_model(model_path)
-    encoder = nn.Sequential(*list(loaded_model.children())[0:1])
+    # encoder = nn.Sequential(*list(loaded_model.children())[0:1])
     print(loaded_model)
-    print('###############')
-    print(encoder)
-
+    state_dict = loaded_model.state_dict()
+    cls = loaded_model.decoder.cls_emb
+    print(state_dict['decoder.cls_emb'])
 
 if __name__ == "__main__":
-    # create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
