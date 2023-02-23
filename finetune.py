@@ -1,9 +1,12 @@
 from pathlib import Path
 
 import torch
-from torch import nn
+from torch import nn, optim
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 import segm.utils.torch as ptu
+from dataloader import Image_and_Masks
 from segm.data.utils import IGNORE_LABEL
 from segm.model.factory import load_model
 from torchsummary import summary
@@ -14,15 +17,39 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     model_dir = Path(model_path).parent
     loaded_model, variant = load_model(model_path)
-    loaded_model
-    loaded_model.to(ptu.device)
+    model = loaded_model
+    model.to(ptu.device)
 
     print(loaded_model)
     # summary(model, (3,224, 224),2)
+    dataset = Image_and_Masks(root_dir='')
+    dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
+
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=IGNORE_LABEL)
+    amp_autocast = torch.cuda.amp.autocast
+
 
     ##Training loop
     criterion = torch.nn.CrossEntropyLoss(ignore_index=IGNORE_LABEL)
 
+    if torch.cuda.is_available():
+        loaded_model.cuda()
+    optimizer = optim.Adam(loaded_model.parameters(), lr=0.00001)
+    epoch = 1
+    for ep in range(epoch):
+        model.train()
+        print('\nStarting epoch %d / %d :' % (ep + 1, epoch))
+        pbar = tqdm(total=len(dataloader_train))
+        for batch_idx, data in enumerate(dataloader_train):
+            with amp_autocast():
+                seg_pred = model.forward(im)
+                loss = criterion(seg_pred, seg_gt)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            pbar.update(1)
+        pbar.close()
 
 def create_segementer(model_path):
     loaded_model, variant = load_model(model_path)
@@ -30,6 +57,7 @@ def create_segementer(model_path):
     print(loaded_model)
     print('###############')
     print(encoder)
+
 
 if __name__ == "__main__":
     create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
