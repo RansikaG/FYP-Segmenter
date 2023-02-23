@@ -20,17 +20,16 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     model = loaded_model
     model.to(ptu.device)
 
-    print(loaded_model)
+    # print(loaded_model)
     # summary(model, (3,224, 224),2)
-    dataset = Image_and_Masks(root_dir='')
+    dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
     dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
 
     criterion = torch.nn.CrossEntropyLoss(ignore_index=IGNORE_LABEL)
     amp_autocast = torch.cuda.amp.autocast
 
-
     ##Training loop
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=IGNORE_LABEL)
+    criterion = torch.nn.CrossEntropyLoss()
 
     if torch.cuda.is_available():
         loaded_model.cuda()
@@ -41,15 +40,20 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
         print('\nStarting epoch %d / %d :' % (ep + 1, epoch))
         pbar = tqdm(total=len(dataloader_train))
         for batch_idx, data in enumerate(dataloader_train):
+            image, mask, viewpoint = data
+            image = image.to(ptu.device)
+            mask = mask.to(ptu.device)
             with amp_autocast():
-                seg_pred = model.forward(im)
-                loss = criterion(seg_pred, seg_gt)
+                seg_pred = model.forward(image)
+                print(seg_pred.shape, mask.shape)
+                loss = criterion(seg_pred[:, 0:1, :, :], mask)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             pbar.update(1)
         pbar.close()
+
 
 def create_segementer(model_path):
     loaded_model, variant = load_model(model_path)
@@ -60,4 +64,5 @@ def create_segementer(model_path):
 
 
 if __name__ == "__main__":
-    create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
