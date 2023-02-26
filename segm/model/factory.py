@@ -98,11 +98,13 @@ def create_decoder(encoder, decoder_cfg):
     return decoder
 
 
-def create_segmenter(model_cfg):
+def create_segmenter(model_cfg, modify):
     model_cfg = model_cfg.copy()
     decoder_cfg = model_cfg.pop("decoder")
-    decoder_cfg["n_cls"] = model_cfg["n_cls"]
-
+    if not modify:
+        decoder_cfg["n_cls"] = model_cfg["n_cls"]
+    else:
+        decoder_cfg["n_cls"] = 4
     encoder = create_vit(model_cfg)
     decoder = create_decoder(encoder, decoder_cfg)
     model = Segmenter(encoder, decoder, n_cls=model_cfg["n_cls"])
@@ -110,13 +112,13 @@ def create_segmenter(model_cfg):
     return model
 
 
-def load_model(model_path):
+def load_model(model_path, modify=False):
     variant_path = Path(model_path).parent / "variant.yml"
     with open(variant_path, "r") as f:
         variant = yaml.load(f, Loader=yaml.FullLoader)
     net_kwargs = variant["net_kwargs"]
 
-    model = create_segmenter(net_kwargs)
+    model = create_segmenter(net_kwargs, modify)
     data = torch.load(model_path, map_location=ptu.device)
     checkpoint = data["model"]
 

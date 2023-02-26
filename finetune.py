@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
@@ -7,7 +5,6 @@ from tqdm import tqdm
 
 import segm.utils.torch as ptu
 from dataloader import Image_and_Masks
-from segm.data.utils import IGNORE_LABEL
 from segm.model.factory import load_model
 from torchsummary import summary
 
@@ -15,8 +12,7 @@ from torchsummary import summary
 def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', gpu=True):
     ptu.set_gpu_mode(gpu)
 
-    model_dir = Path(model_path).parent
-    loaded_model, variant = load_model(model_path)
+    loaded_model, variant = load_new_model(model_path)
     model = loaded_model
     model.to(ptu.device)
 
@@ -29,9 +25,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     ##Training loop
 
-    if torch.cuda.is_available():
-        loaded_model.cuda()
-    optimizer = optim.Adam(loaded_model.parameters(), lr=0.00001)
+    optimizer = optim.Adam(model.parameters(), lr=0.00001)
     epoch = 1
     for ep in range(epoch):
         model.train()
@@ -40,11 +34,12 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
         for batch_idx, data in enumerate(dataloader_train):
             image, mask, viewpoint = data
             image = image.to(ptu.device)
-            mask = mask.to(ptu.device)
+            mask = mask.to(ptu.device)  # between 0-1
             with amp_autocast():
                 seg_pred = model.forward(image)
                 pred_maps = create_attention_maps(seg_pred)
-            loss_mask, loss_area, loss_div, foreground_loss = Loss(pred_maps, seg_pred[:, 0:1, :, :], mask, viewpoint)
+
+            loss_mask, loss_area, loss_div, foreground_loss = Loss(pred_maps, mask, viewpoint)
             loss = loss_mask + loss_area + loss_div + foreground_loss
             optimizer.zero_grad()
             loss.backward()
@@ -57,20 +52,32 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 def create_attention_maps(seg_pred):
     softmax = nn.Softmax2d()
     seg_soft_masks = softmax(seg_pred)
-    seg_soft_masks = seg_soft_masks *255
-    return seg_soft_masks[:, :3, :, :]
+    seg_soft_masks = seg_soft_masks
+    return seg_soft_masks
 
 
-def create_segementer(model_path):
+def load_new_model(model_path):
     loaded_model, variant = load_model(model_path)
-    # encoder = nn.Sequential(*list(loaded_model.children())[0:1])
-    print(loaded_model)
     state_dict = loaded_model.state_dict()
-    cls = loaded_model.decoder.cls_emb
-    print(state_dict['decoder.cls_emb'].shape)
+    # cls = loaded_model.decoder.cls_emb
+    # classes = torch.tensor(cls[:, 57, :])
+    cls_embeddings = torch.rand(1, 4, 1024)
+    state_dict['decoder.cls_emb'] = cls_embeddings
+    state_dict['decoder.mask_norm.bias'] = torch.rand(4)
+    state_dict['decoder.mask_norm.weight'] = torch.rand(4)
+    del loaded_model, variant
+    modified_model_path = model_path.replace('.pth', '_new.pth')
+
+    snapshot = dict(
+        model=state_dict,
+    )
+    torch.save(snapshot, modified_model_path)
+
+    new_model, variant = load_model(modified_model_path, modify=True)
+    return new_model, variant
 
 
-def Loss(pred, seg_pred, target, view):
+def Loss(pred, target, view):
     bs, c, h, w = pred.size()
     device = pred.device
 
@@ -78,9 +85,10 @@ def Loss(pred, seg_pred, target, view):
 
     criterion_foreground = torch.nn.CrossEntropyLoss()
 
-    loss_foreground = criterion_foreground(seg_pred, target)
+    loss_foreground = criterion_foreground(pred[:, 0:1, :, :], target)
+    sides_pred = pred[:, 1:3, :, :]
     ''' 1st loss: Mask Reconstruction loss '''
-    pred_mask = torch.zeros_like(pred)
+    pred_mask = torch.zeros_like(sides_pred)
     for i in range(bs):  # F/R/S iterating over the batch dimension
         if view[i] == 0:
             pred_mask[i] = torch.LongTensor([1, 0, 0]).view(-1, 1, 1).repeat(1, h, w)
@@ -128,5 +136,5 @@ def Loss(pred, seg_pred, target, view):
 
 
 if __name__ == "__main__":
-    # create_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # load_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
     finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
