@@ -16,9 +16,9 @@ from segm.model.utils import inference
 
 
 @click.command()
-@click.option("--model-path", type=str)
-@click.option("--input-dir", "-i", type=str, help="folder with input images")
-@click.option("--output-dir", "-o", type=str, help="folder with output images")
+@click.option("--model-path", default='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', type=str)
+@click.option("--input-dir", "-i", default ='E:/GitHub Repos/images', type=str, help="folder with input images")
+@click.option("--output-dir", "-o", default = 'E:/GitHub Repos/out',type=str, help="folder with output images")
 @click.option("--gpu/--cpu", default=True, is_flag=True)
 def main(model_path, input_dir, output_dir, gpu):
     ptu.set_gpu_mode(gpu)
