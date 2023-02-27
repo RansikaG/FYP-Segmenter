@@ -18,7 +18,8 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     # print(loaded_model)
     # summary(model, (3,224, 224),2)
-    dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
+    # dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
+    dataset = Image_and_Masks(root_dir='/home/fyp3-2/Desktop/BATCH18/V7_masks')
     dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
 
     amp_autocast = torch.cuda.amp.autocast
@@ -27,8 +28,12 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     optimizer = optim.Adam(model.parameters(), lr=0.00001)
     epoch = 1
+    train_mask_loss = 0.
+    train_area_loss = 0.
+    train_div_loss = 0.
     for ep in range(epoch):
         model.train()
+
         print('\nStarting epoch %d / %d :' % (ep + 1, epoch))
         pbar = tqdm(total=len(dataloader_train))
         for batch_idx, data in enumerate(dataloader_train):
@@ -41,10 +46,15 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
             loss_mask, loss_area, loss_div = Loss(pred_maps, mask, viewpoint)
             loss = loss_mask + loss_area + loss_div
+
+            train_mask_loss += loss_mask.item()
+            train_area_loss += loss_area.item()
+            train_div_loss += loss_div.item()
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
+            pbar.set_postfix({'mask_loss': ' {0:1.3f}'.format(train_mask_loss / (batch_idx + 1))})
             pbar.update(1)
         pbar.close()
 
@@ -58,10 +68,13 @@ def create_attention_maps(seg_pred):
 
 def load_new_model(model_path):
     loaded_model, variant = load_model(model_path)
+    net_kwargs = variant["net_kwargs"]
+    embed_dim = int(net_kwargs["d_model"])
+
     state_dict = loaded_model.state_dict()
     # cls = loaded_model.decoder.cls_emb
     # classes = torch.tensor(cls[:, 57, :])
-    cls_embeddings = torch.rand(1, 3, 1024)
+    cls_embeddings = torch.rand(1, 3, embed_dim)
     state_dict['decoder.cls_emb'] = cls_embeddings
     state_dict['decoder.mask_norm.bias'] = torch.rand(3)
     state_dict['decoder.mask_norm.weight'] = torch.rand(3)
@@ -136,5 +149,6 @@ def Loss(pred, target, view):
 
 
 if __name__ == "__main__":
-    load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
     # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
