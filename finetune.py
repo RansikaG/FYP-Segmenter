@@ -39,8 +39,8 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
                 seg_pred = model.forward(image)
                 pred_maps = create_attention_maps(seg_pred)
 
-            loss_mask, loss_area, loss_div, foreground_loss = Loss(pred_maps, mask, viewpoint)
-            loss = loss_mask + loss_area + loss_div + foreground_loss
+            loss_mask, loss_area, loss_div = Loss(pred_maps, mask, viewpoint)
+            loss = loss_mask + loss_area + loss_div
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -61,10 +61,10 @@ def load_new_model(model_path):
     state_dict = loaded_model.state_dict()
     # cls = loaded_model.decoder.cls_emb
     # classes = torch.tensor(cls[:, 57, :])
-    cls_embeddings = torch.rand(1, 4, 1024)
+    cls_embeddings = torch.rand(1, 3, 1024)
     state_dict['decoder.cls_emb'] = cls_embeddings
-    state_dict['decoder.mask_norm.bias'] = torch.rand(4)
-    state_dict['decoder.mask_norm.weight'] = torch.rand(4)
+    state_dict['decoder.mask_norm.bias'] = torch.rand(3)
+    state_dict['decoder.mask_norm.weight'] = torch.rand(3)
     del loaded_model, variant
     modified_model_path = model_path.replace('.pth', '_new.pth')
 
@@ -74,6 +74,12 @@ def load_new_model(model_path):
     torch.save(snapshot, modified_model_path)
 
     new_model, variant = load_model(modified_model_path, modify=True)
+    # new_model.encoder.reqiresgrad(False)
+    children = new_model.children()
+    for i, child in enumerate(children):
+        if i > 0:
+            for param in child.parameters():
+                param.requires_grad = False
     return new_model, variant
 
 
@@ -81,14 +87,8 @@ def Loss(pred, target, view):
     bs, c, h, w = pred.size()
     device = pred.device
 
-    # Foreground loss
-
-    criterion_foreground = torch.nn.CrossEntropyLoss()
-
-    loss_foreground = criterion_foreground(pred[:, 0:1, :, :], target)
-    sides_pred = pred[:, 1:3, :, :]
     ''' 1st loss: Mask Reconstruction loss '''
-    pred_mask = torch.zeros_like(sides_pred)
+    pred_mask = torch.zeros_like(pred)
     for i in range(bs):  # F/R/S iterating over the batch dimension
         if view[i] == 0:
             pred_mask[i] = torch.LongTensor([1, 0, 0]).view(-1, 1, 1).repeat(1, h, w)
@@ -132,9 +132,9 @@ def Loss(pred, target, view):
     loss_divFS = criterion_div((pred[:, 0] * pred[:, 2]).mean() - 0.04)
     loss_divRS = criterion_div((pred[:, 1] * pred[:, 2]).mean() - 0.04)
     loss_div = loss_divFR + loss_divFS + loss_divRS
-    return loss_mask, 0.5 * loss_area.mean(), loss_div, loss_foreground
+    return loss_mask, 0.5 * loss_area.mean(), loss_div
 
 
 if __name__ == "__main__":
-    # load_segementer(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
