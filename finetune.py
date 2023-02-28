@@ -25,7 +25,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     # dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
     train_dataset = Image_and_Masks(root_dir='dataset', mode='train')
     valid_dataset = Image_and_Masks(root_dir='dataset', mode='validate')
-    dataloader_train = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=4)
+    dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
     dataloader_valid = DataLoader(valid_dataset, batch_size=21)
     amp_autocast = torch.cuda.amp.autocast
 
