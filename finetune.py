@@ -19,15 +19,15 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     # print(loaded_model)
     # summary(model, (3,224, 224),2)
     # dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
-    dataset = Image_and_Masks(root_dir='/home/fyp3-2/Desktop/BATCH18/V7_masks')
-    dataloader_train = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
+    train_dataset = Image_and_Masks(root_dir='dataset', mode='train')
+    dataloader_train = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=1)
 
     amp_autocast = torch.cuda.amp.autocast
 
     ##Training loop
 
     optimizer = optim.Adam(model.parameters(), lr=0.00001)
-    epoch = 1
+    epoch = 50
     train_mask_loss = 0.
     train_area_loss = 0.
     train_div_loss = 0.
@@ -56,7 +56,22 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
             optimizer.step()
             pbar.set_postfix({'mask_loss': ' {0:1.3f}'.format(train_mask_loss / (batch_idx + 1))})
             pbar.update(1)
+        if (epoch + 1) % 10 == 0:
+            save_model(model, model_path, epoch + 1)
         pbar.close()
+        print('Evaluating')
+        evaluate(model)
+
+
+def evaluate(model):
+    model.eval()
+
+
+def save_model(model, model_path, epoch):
+    snapshot = dict(
+        model=model.state_dict(),
+    )
+    torch.save(snapshot, model_path.replace('.pth', '_' + str(epoch) + '_epoch.pth'))
 
 
 def create_attention_maps(seg_pred):
