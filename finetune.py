@@ -31,7 +31,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     ##Training loop
 
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.00001)
     epoch = 50
 
     for ep in range(epoch):
@@ -105,7 +105,7 @@ def evaluate_images(model, path, validloader, ep):
         plt.subplot(7, 12, (4 * i + 4));
         plt.axis('off');
         plt.title('Side', fontsize=6)
-        # plt.imshow(data[i] * np.tile(pred[i, 2, :, :, np.newaxis], (1, 1, 3)))
+        plt.imshow(data[i] * np.tile(pred[i, 2, :, :, np.newaxis], (1, 1, 3)))
     image_name = os.path.join(path, '%i.png' % (ep + 1))
     plt.savefig(image_name, dpi=200);
     plt.close()
