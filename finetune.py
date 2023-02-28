@@ -51,7 +51,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
                 pred_maps = create_attention_maps(seg_pred)
 
             loss_mask, loss_area, loss_div = Loss(pred_maps, mask, viewpoint)
-            loss = loss_mask + loss_area + loss_div
+            loss = 2*loss_mask + loss_area + loss_div
 
             train_mask_loss += loss_mask.item()
             train_area_loss += loss_area.item()
@@ -92,7 +92,7 @@ def evaluate_images(model, path, validloader, ep):
     for i in range(21):
         plt.subplot(7, 12, (4 * i + 1));
         plt.axis('off');
-        plt.title(orien_dict[view[i]], fontsize=6)
+        plt.title(orien_dict[view[i]], fontsize=6, fontweight="bold")
         plt.imshow(data[i])
         plt.subplot(7, 12, (4 * i + 2));
         plt.axis('off');
@@ -107,7 +107,7 @@ def evaluate_images(model, path, validloader, ep):
         plt.title('Side', fontsize=6)
         plt.imshow(data[i] * np.tile(pred[i, 2, :, :, np.newaxis], (1, 1, 3)))
     image_name = os.path.join(path, '%i.png' % (ep + 1))
-    plt.savefig(image_name, dpi=200);
+    plt.savefig(image_name);
     plt.close()
 
 
