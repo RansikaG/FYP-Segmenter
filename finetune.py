@@ -31,12 +31,13 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
 
     ##Training loop
 
-    optimizer = optim.Adam(model.parameters(), lr=0.00001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     epoch = 50
-    train_mask_loss = 0.
-    train_area_loss = 0.
-    train_div_loss = 0.
+
     for ep in range(epoch):
+        train_mask_loss = 0.
+        train_area_loss = 0.
+        train_div_loss = 0.
         model.train()
 
         print('\nStarting epoch %d / %d :' % (ep + 1, epoch))
@@ -61,10 +62,10 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
             optimizer.step()
             pbar.set_postfix({'mask_loss': ' {0:1.3f}'.format(train_mask_loss / (batch_idx + 1))})
             pbar.update(1)
-        if (epoch + 1) % 10 == 0:
-            save_model(model, model_path, epoch + 1)
-            print('Evaluating in ' + str(epoch+1))
-            evaluate_images(model=model, path='dataset', validloader=dataloader_valid, ep=epoch)
+        if (ep + 1) % 10 == 0:
+            save_model(model, model_path, ep + 1)
+            print('Evaluating in ' + str(ep+1))
+            evaluate_images(model=model, path='dataset', validloader=dataloader_valid, ep=ep)
         pbar.close()
 
 
