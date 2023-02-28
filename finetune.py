@@ -32,7 +32,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     ##Training loop
 
     optimizer = optim.Adam(model.parameters(), lr=0.00001)
-    epoch = 50
+    epoch = 300
 
     for ep in range(epoch):
         train_mask_loss = 0.
