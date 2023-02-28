@@ -1,8 +1,12 @@
+import os
+
+import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+import torchvision.transforms as T
 import segm.utils.torch as ptu
 from dataloader import Image_and_Masks
 from segm.model.factory import load_model
@@ -20,8 +24,9 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     # summary(model, (3,224, 224),2)
     # dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
     train_dataset = Image_and_Masks(root_dir='dataset', mode='train')
-    dataloader_train = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=1)
-
+    valid_dataset = Image_and_Masks(root_dir='dataset', mode='valid')
+    dataloader_train = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=4)
+    dataloader_valid = DataLoader(valid_dataset, batch_size=21)
     amp_autocast = torch.cuda.amp.autocast
 
     ##Training loop
@@ -58,13 +63,11 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
             pbar.update(1)
         if (epoch + 1) % 10 == 0:
             save_model(model, model_path, epoch + 1)
+            print('Evaluating in ' + str(epoch+1))
+            evaluate_images(model=model, path='dataset', validloader=dataloader_valid, ep=epoch)
         pbar.close()
-        print('Evaluating')
-        evaluate(model)
 
 
-def evaluate(model):
-    model.eval()
 
 
 def save_model(model, model_path, epoch):
@@ -72,6 +75,39 @@ def save_model(model, model_path, epoch):
         model=model.state_dict(),
     )
     torch.save(snapshot, model_path.replace('.pth', '_' + str(epoch) + '_epoch.pth'))
+
+
+def evaluate_images(model, path, validloader, ep):
+    inv = T.Compose([T.Normalize(mean=[0., 0., 0.], std=[1 / 0.229, 1 / 0.224, 1 / 0.225]),
+                     T.Normalize(mean=[-0.485, -0.456, -0.406], std=[1., 1., 1.])])
+    data, mask, view = iter(validloader).next()
+    pred = model(data.to(ptu.device))
+    data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
+    view = view.detach().numpy()
+    pred = pred.detach().cpu().numpy()
+
+    orien_dict = {0: 'Front', 1: 'Rear', 2: 'Side', 3: 'Front-Side', 4: 'Rear-Side'}
+    plt.figure()
+    for i in range(21):
+        plt.subplot(7, 12, (4 * i + 1));
+        plt.axis('off');
+        plt.title(orien_dict[view[i]], fontsize=6)
+        plt.imshow(data[i])
+        plt.subplot(7, 12, (4 * i + 2));
+        plt.axis('off');
+        plt.title('Front', fontsize=6)
+        plt.imshow(data[i] * np.tile(pred[i, 0, :, :, np.newaxis], (1, 1, 3)))
+        plt.subplot(7, 12, (4 * i + 3));
+        plt.axis('off');
+        plt.title('Rear', fontsize=6)
+        plt.imshow(data[i] * np.tile(pred[i, 1, :, :, np.newaxis], (1, 1, 3)))
+        plt.subplot(7, 12, (4 * i + 4));
+        plt.axis('off');
+        plt.title('Side', fontsize=6)
+        plt.imshow(data[i] * np.tile(pred[i, 2, :, :, np.newaxis], (1, 1, 3)))
+    image_name = os.path.join(path, '%i.png' % (ep + 1))
+    plt.savefig(image_name, dpi=200);
+    plt.close()
 
 
 def create_attention_maps(seg_pred):
