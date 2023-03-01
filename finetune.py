@@ -83,7 +83,9 @@ def evaluate_images(model, path, validloader, ep):
                      T.Normalize(mean=[-0.485, -0.456, -0.406], std=[1., 1., 1.])])
     data, mask, view = iter(validloader).next()
     pred = model(data.to(ptu.device))
-    data = data.convert('L')
+
+    transform = T.ToPILImage()
+    data = transform(data).convert('L')
     # data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
     view = view.detach().numpy()
     pred = pred.detach().cpu().numpy()
