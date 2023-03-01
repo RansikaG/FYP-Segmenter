@@ -84,9 +84,7 @@ def evaluate_images(model, path, validloader, ep):
     data, mask, view = iter(validloader).next()
     pred = model(data.to(ptu.device))
 
-    transform = T.ToPILImage()
-    data = [transform(x).convert('L') for x in data]
-    # data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
+    data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
     view = view.detach().numpy()
     pred = pred.detach().cpu().numpy()
 
