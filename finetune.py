@@ -206,6 +206,6 @@ def Loss(pred, target, view):
 
 
 if __name__ == "__main__":
-    load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
     # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    # finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
+    finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
