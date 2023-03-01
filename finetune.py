@@ -50,8 +50,8 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
                 seg_pred = model.forward(image)
                 pred_maps = create_attention_maps(seg_pred)
 
-            loss_mask, loss_area, loss_div = Loss(pred_maps, mask, viewpoint)
-            loss = loss_mask + loss_area + loss_div
+            loss_mask, loss_area, loss_div, loss_background = Loss(pred_maps, mask, viewpoint)
+            loss = loss_mask + loss_area + loss_div + loss_background
 
             train_mask_loss += loss_mask.item()
             train_area_loss += loss_area.item()
@@ -64,11 +64,9 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
             pbar.update(1)
         if (ep + 1) % 10 == 0:
             save_model(model, model_path, ep + 1)
-            print('Evaluating in ' + str(ep+1))
+            print('Evaluating in ' + str(ep + 1))
             evaluate_images(model=model, path='dataset', validloader=dataloader_valid, ep=ep)
         pbar.close()
-
-
 
 
 def save_model(model, model_path, epoch):
@@ -125,7 +123,7 @@ def load_new_model(model_path):
     # embed_dim = int(net_kwargs["d_model"])
 
     decoder_cfg = net_kwargs.pop("decoder")
-    decoder_cfg["n_cls"] = 3
+    decoder_cfg["n_cls"] = 4
     decoder = create_decoder(loaded_model.encoder, decoder_cfg)
 
     loaded_model.decoder = decoder
@@ -158,8 +156,13 @@ def Loss(pred, target, view):
     bs, c, h, w = pred.size()
     device = pred.device
 
+    background = pred[:, 0, :, :]
+    criterion_background = torch.nn.CrossEntropyLoss()
+    background_mask= ~target
+    loss_background = criterion_background(background,background_mask )
+    fsr_pred = pred[:, 1:, :, :]
     ''' 1st loss: Mask Reconstruction loss '''
-    pred_mask = torch.zeros_like(pred)
+    pred_mask = torch.zeros_like(fsr_pred)
     for i in range(bs):  # F/R/S iterating over the batch dimension
         if view[i] == 0:
             pred_mask[i] = torch.LongTensor([1, 0, 0]).view(-1, 1, 1).repeat(1, h, w)
@@ -174,11 +177,11 @@ def Loss(pred, target, view):
     pred_mask = pred_mask.to(device)
 
     criterion_mask = nn.MSELoss()
-    pred_mask = torch.sum(pred * pred_mask, dim=1, keepdim=True)
+    pred_mask = torch.sum(fsr_pred * pred_mask, dim=1, keepdim=True)
     loss_mask = criterion_mask(pred_mask, target)
 
     ''' 2nd loss: Area Constraint loss '''
-    mask_area = pred.view(bs, c, -1).sum(2)
+    mask_area = fsr_pred.view(bs, c, -1).sum(2)
     area = target.view(bs, -1).sum(1, keepdim=True).expand_as(mask_area)
     mask_area_max = torch.zeros_like(mask_area)
     for i in range(bs):
@@ -199,14 +202,14 @@ def Loss(pred, target, view):
 
     ''' 3rd loss: Spatial Diversity loss '''
     criterion_div = nn.ReLU()
-    loss_divFR = criterion_div((pred[:, 0] * pred[:, 1]).mean())
-    loss_divFS = criterion_div((pred[:, 0] * pred[:, 2]).mean() - 0.04)
-    loss_divRS = criterion_div((pred[:, 1] * pred[:, 2]).mean() - 0.04)
+    loss_divFR = criterion_div((fsr_pred[:, 0] * fsr_pred[:, 1]).mean())
+    loss_divFS = criterion_div((fsr_pred[:, 0] * fsr_pred[:, 2]).mean() - 0.04)
+    loss_divRS = criterion_div((fsr_pred[:, 1] * fsr_pred[:, 2]).mean() - 0.04)
     loss_div = loss_divFR + loss_divFS + loss_divRS
-    return loss_mask, 0.5 * loss_area.mean(), loss_div
+    return loss_mask, 0.5 * loss_area.mean(), loss_div, loss_background
 
 
 if __name__ == "__main__":
     # load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
+    finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    # finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
