@@ -158,8 +158,8 @@ def Loss(pred, target, view):
 
     background = pred[:, 0, :, :]
     criterion_background = torch.nn.CrossEntropyLoss()
-    background_mask= ~target
-    loss_background = criterion_background(background,background_mask )
+    background_mask = ~(target > 0.0).float()
+    loss_background = criterion_background(background, background_mask)
     fsr_pred = pred[:, 1:, :, :]
     ''' 1st loss: Mask Reconstruction loss '''
     pred_mask = torch.zeros_like(fsr_pred)
