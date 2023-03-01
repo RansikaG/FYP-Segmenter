@@ -9,7 +9,7 @@ from tqdm import tqdm
 import torchvision.transforms as T
 import segm.utils.torch as ptu
 from dataloader import Image_and_Masks
-from segm.model.factory import load_model
+from segm.model.factory import load_model, create_decoder
 from torchsummary import summary
 
 
@@ -121,15 +121,20 @@ def create_attention_maps(seg_pred):
 def load_new_model(model_path):
     loaded_model, variant = load_model(model_path)
     net_kwargs = variant["net_kwargs"]
-    embed_dim = int(net_kwargs["d_model"])
+    # embed_dim = int(net_kwargs["d_model"])
 
+    decoder_cfg = net_kwargs.pop("decoder")
+    decoder_cfg["n_cls"] = 3
+    decoder = create_decoder(loaded_model.encoder, decoder_cfg)
+
+    loaded_model.decoder = decoder
     state_dict = loaded_model.state_dict()
     # cls = loaded_model.decoder.cls_emb
     # classes = torch.tensor(cls[:, 57, :])
-    cls_embeddings = torch.rand(1, 3, embed_dim)
-    state_dict['decoder.cls_emb'] = cls_embeddings
-    state_dict['decoder.mask_norm.bias'] = torch.rand(3)
-    state_dict['decoder.mask_norm.weight'] = torch.rand(3)
+    # cls_embeddings = torch.rand(1, 3, embed_dim)
+    # state_dict['decoder.cls_emb'] = cls_embeddings
+    # state_dict['decoder.mask_norm.bias'] = torch.rand(3)
+    # state_dict['decoder.mask_norm.weight'] = torch.rand(3)
     del loaded_model, variant
     modified_model_path = model_path.replace('.pth', '_new.pth')
 
@@ -201,6 +206,6 @@ def Loss(pred, target, view):
 
 
 if __name__ == "__main__":
-    # load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
+    load_new_model(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
     # finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth')
-    finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
+    # finetune(model_path='/home/fyp3-2/Desktop/BATCH18/FYP-Segmenter/PretrainedModels/checkpoint.pth')
