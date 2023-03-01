@@ -104,7 +104,7 @@ def create_segmenter(model_cfg, modify):
     if not modify:
         decoder_cfg["n_cls"] = model_cfg["n_cls"]
     else:
-        decoder_cfg["n_cls"] = 3
+        decoder_cfg["n_cls"] = 4
     encoder = create_vit(model_cfg)
     decoder = create_decoder(encoder, decoder_cfg)
     model = Segmenter(encoder, decoder, n_cls=model_cfg["n_cls"])
