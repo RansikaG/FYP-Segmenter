@@ -32,7 +32,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     ##Training loop
 
     optimizer = optim.Adam(model.parameters(), lr=0.00001)
-    epoch = 300
+    epoch = 100
 
     for ep in range(epoch):
         train_mask_loss = 0.
@@ -51,7 +51,7 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
                 pred_maps = create_attention_maps(seg_pred)
 
             loss_mask, loss_area, loss_div = Loss(pred_maps, mask, viewpoint)
-            loss = 2*loss_mask + loss_area + loss_div
+            loss = loss_mask + loss_area + loss_div
 
             train_mask_loss += loss_mask.item()
             train_area_loss += loss_area.item()
@@ -83,7 +83,8 @@ def evaluate_images(model, path, validloader, ep):
                      T.Normalize(mean=[-0.485, -0.456, -0.406], std=[1., 1., 1.])])
     data, mask, view = iter(validloader).next()
     pred = model(data.to(ptu.device))
-    data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
+    data = data.convert('L')
+    # data = [inv(x).permute(1, 2, 0).cpu().detach().numpy() for x in data]
     view = view.detach().numpy()
     pred = pred.detach().cpu().numpy()
 
