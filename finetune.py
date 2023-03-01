@@ -23,8 +23,8 @@ def finetune(model_path='E:/GitHub Repos/segmenter_model_data/checkpoint.pth', g
     # print(loaded_model)
     # summary(model, (3,224, 224),2)
     # dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks')
-    train_dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks', mode='train')
-    valid_dataset = Image_and_Masks(root_dir='E:/GitHub Repos/V7_masks', mode='validate')
+    train_dataset = Image_and_Masks(root_dir='dataset', mode='train')
+    valid_dataset = Image_and_Masks(root_dir='dataset', mode='validate')
     dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
     dataloader_valid = DataLoader(valid_dataset, batch_size=21)
     amp_autocast = torch.cuda.amp.autocast
@@ -153,14 +153,15 @@ def load_new_model(model_path):
 
 
 def Loss(pred, target, view):
-    bs, c, h, w = pred.size()
+    fsr_pred = pred[:, 1:4, :, :]
+    bs, c, h, w = fsr_pred.size()
     device = pred.device
 
     background = pred[:, 0:1, :, :]
     criterion_background = torch.nn.CrossEntropyLoss()
     background_mask = (target < 1.0).float()
     loss_background = criterion_background(background, background_mask)
-    fsr_pred = pred[:, 1:4, :, :]
+
     ''' 1st loss: Mask Reconstruction loss '''
     pred_mask = torch.zeros_like(fsr_pred)
     for i in range(bs):  # F/R/S iterating over the batch dimension
